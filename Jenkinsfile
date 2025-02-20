@@ -5,24 +5,29 @@ pipeline {
         IMAGE_NAME = "flask-app"
         IMAGE_TAG = "latest"
         REGISTRY = "localhost:5000"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/afibanez24/homelab.git'
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                script {
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
             }
         }
 
         stage('Push Image to Minikube') {
             steps {
-                sh "minikube image load ${IMAGE_NAME}:${IMAGE_TAG}"
+                script {
+                    sh "minikube image load ${IMAGE_NAME}:${IMAGE_TAG}"
+                }
             }
         }
 
@@ -33,13 +38,25 @@ pipeline {
                     terraform init
                     terraform apply -auto-approve
                 '''
+                }
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh "kubectl get pods -n flask-app-space"
+                script {
+                    sh "kubectl get pods -n flask-app-space --kubeconfig=${KUBECONFIG}"
+                }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline ejecutado con éxito"
+        }
+        failure {
+            echo "❌ Hubo un fallo en el pipeline. Revisa los logs."
         }
     }
 }
