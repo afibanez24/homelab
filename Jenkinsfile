@@ -6,6 +6,7 @@ pipeline {
         IMAGE_TAG = "latest"
         REGISTRY = "localhost:5000"
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        NAMESPACE = "homelab"  # 🚨 Antes era flask-app-space (incorrecto)
     }
 
     stages {
@@ -41,10 +42,18 @@ pipeline {
             }
         }
 
+        stage('Force Deployment Restart') {  # 🚀 Asegurar que Kubernetes use la nueva imagen
+            steps {
+                script {
+                    sh "kubectl rollout restart deployment backend-deployment -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
+                }
+            }
+        }
+
         stage('Verify Deployment') {
             steps {
                 script {
-                    sh "kubectl get pods -n flask-app-space --kubeconfig=${KUBECONFIG}"
+                    sh "kubectl get pods -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
                 }
             }
         }

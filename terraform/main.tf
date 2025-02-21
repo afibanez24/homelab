@@ -1,22 +1,3 @@
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
-
-provider "kubernetes" {
-  config_path = "~/.kube/config" # Asegura que Kubernetes se pueda conectar
-}
-
-resource "kubernetes_namespace" "homelab" {
-  metadata {
-    name = "homelab"
-  }
-}
-
 resource "kubernetes_deployment" "backend" {
   metadata {
     name      = "backend-deployment"
@@ -46,6 +27,7 @@ resource "kubernetes_deployment" "backend" {
         container {
           image = "flask-app:latest"
           name  = "backend-container"
+          image_pull_policy = "Never"  # 🚨 Evita que intente descargar la imagen de un registry externo
 
           port {
             container_port = 5000
@@ -53,26 +35,5 @@ resource "kubernetes_deployment" "backend" {
         }
       }
     }
-  }
-}
-
-resource "kubernetes_service" "backend" {
-  metadata {
-    name      = "backend-service"
-    namespace = kubernetes_namespace.homelab.metadata[0].name
-  }
-
-  spec {
-    selector = {
-      app = "backend"
-    }
-
-    port {
-      protocol    = "TCP"
-      port        = 5000
-      target_port = 5000
-    }
-
-    type = "ClusterIP"
   }
 }
