@@ -44,7 +44,7 @@ resource "kubernetes_deployment" "backend" {
 
       spec {
         container {
-          image = "backend-app:latest"
+          image = "flask-app:latest"
           name  = "backend-container"
 
           port {
