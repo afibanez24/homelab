@@ -6,7 +6,7 @@ pipeline {
         IMAGE_TAG = "latest"
         REGISTRY = "localhost:5000"
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
-        NAMESPACE = "homelab"  # 🚨 Antes era flask-app-space (incorrecto)
+        NAMESPACE = "homelab"  // 🚨 Antes era flask-app-space (incorrecto)
     }
 
     stages {
