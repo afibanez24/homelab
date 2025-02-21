@@ -43,7 +43,7 @@ resource "kubernetes_deployment" "backend" {
       }
 
       spec {
-        containers {  # 🚨 La clave correcta es "containers", no "container"
+
           container {
             name  = "backend-container"
             image = "flask-app:latest"
@@ -53,7 +53,7 @@ resource "kubernetes_deployment" "backend" {
               container_port = 5000
             }
           }
-        }
+
       }
     }
   }
