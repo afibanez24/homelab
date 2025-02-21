@@ -42,7 +42,7 @@ pipeline {
             }
         }
 
-        stage('Force Deployment Restart') {  # 🚀 Asegurar que Kubernetes use la nueva imagen
+        stage('Force Deployment Restart') {
             steps {
                 script {
                     sh "kubectl rollout restart deployment backend-deployment -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
