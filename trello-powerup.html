@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trello Power-Up Connector</title>
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+    <script>
+        var t = TrelloPowerUp.iframe();
+        console.log("Trello Power-Up is loaded!");
+
+        t.initialize({
+            'card-buttons': function(t, options) {
+                return [{
+                    icon: 'https://yourserver.com/icon.png', // Ícono del botón
+                    text: 'Actualizar estado en Trello',
+                    callback: function(t) {
+                        return t.alert({
+                            message: "¡Se ha actualizado la tarjeta en Trello!",
+                            duration: 5
+                        });
+                    }
+                }];
+            }
+        });
+    </script>
+</body>
+</html>
