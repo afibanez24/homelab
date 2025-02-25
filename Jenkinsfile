@@ -7,19 +7,30 @@ pipeline {
         REGISTRY = "localhost:5000"
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
         NAMESPACE = "homelab"
+        ELASTIC_URL = "http://localhost:9200/jenkins-logs/_doc/"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                checkout scm
+                script {
+                    sh 'echo "Iniciando clonación del repositorio..."'
+                    checkout scm
+                    sendLogsToElasticsearch("Clone Repository", "success")
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                    try {
+                        sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                        sendLogsToElasticsearch("Build Docker Image", "success")
+                    } catch (Exception e) {
+                        sendLogsToElasticsearch("Build Docker Image", "failure")
+                        throw e
+                    }
                 }
             }
         }
@@ -27,25 +38,45 @@ pipeline {
         stage('Push Image to Minikube') {
             steps {
                 script {
-                    sh "minikube image load ${IMAGE_NAME}:${IMAGE_TAG}"
+                    try {
+                        sh "minikube image load ${IMAGE_NAME}:${IMAGE_TAG}"
+                        sendLogsToElasticsearch("Push Image to Minikube", "success")
+                    } catch (Exception e) {
+                        sendLogsToElasticsearch("Push Image to Minikube", "failure")
+                        throw e
+                    }
                 }
             }
         }
 
         stage('Deploy with Terraform') {
             steps {
-                sh '''
-                    cd terraform
-                    terraform init
-                    terraform apply -auto-approve
-                '''
+                script {
+                    try {
+                        sh '''
+                            cd terraform
+                            terraform init
+                            terraform apply -auto-approve
+                        '''
+                        sendLogsToElasticsearch("Deploy with Terraform", "success")
+                    } catch (Exception e) {
+                        sendLogsToElasticsearch("Deploy with Terraform", "failure")
+                        throw e
+                    }
+                }
             }
         }
 
         stage('Force Deployment Restart') {
             steps {
                 script {
-                    sh "kubectl rollout restart deployment backend-deployment -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
+                    try {
+                        sh "kubectl rollout restart deployment backend-deployment -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
+                        sendLogsToElasticsearch("Force Deployment Restart", "success")
+                    } catch (Exception e) {
+                        sendLogsToElasticsearch("Force Deployment Restart", "failure")
+                        throw e
+                    }
                 }
             }
         }
@@ -53,7 +84,13 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 script {
-                    sh "kubectl get pods -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
+                    try {
+                        sh "kubectl get pods -n ${NAMESPACE} --kubeconfig=${KUBECONFIG}"
+                        sendLogsToElasticsearch("Verify Deployment", "success")
+                    } catch (Exception e) {
+                        sendLogsToElasticsearch("Verify Deployment", "failure")
+                        throw e
+                    }
                 }
             }
         }
@@ -61,10 +98,35 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline ejecutado con éxito"
+            script {
+                echo "✅ Pipeline ejecutado con éxito"
+                sendLogsToElasticsearch("Pipeline", "success")
+            }
         }
         failure {
-            echo "❌ Hubo un fallo en el pipeline. Revisa los logs."
+            script {
+                echo "❌ Hubo un fallo en el pipeline. Revisa los logs."
+                sendLogsToElasticsearch("Pipeline", "failure")
+            }
         }
+    }
+}
+
+def sendLogsToElasticsearch(stageName, status) {
+    script {
+        def buildLog = sh(script: 'tail -n 50 /var/log/jenkins/jenkins.log', returnStdout: true).trim()
+
+        sh """
+        curl -X POST -H "Content-Type: application/json" -d '
+        {
+            "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss")}",
+            "job": "${env.JOB_NAME}",
+            "branch": "${env.BRANCH_NAME}",
+            "build": "${env.BUILD_NUMBER}",
+            "stage": "${stageName}",
+            "status": "${status}",
+            "log": "${buildLog}"
+        }' ${ELASTIC_URL} || echo "⚠️ No se pudo enviar log a Elasticsearch"
+        """
     }
 }
