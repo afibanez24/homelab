@@ -8,6 +8,7 @@ pipeline {
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
         NAMESPACE = "homelab"
         ELASTIC_URL = "http://localhost:9200/jenkins-logs/_doc/"
+        JENKINS_LOG="/var/log/jenkins/jenkins.log"  // RUTA DEL LOG
     }
 
     stages {
@@ -112,10 +113,19 @@ pipeline {
     }
 }
 
+// 🔹 Función Mejorada para Enviar Logs a Elasticsearch
 def sendLogsToElasticsearch(stageName, status) {
     script {
-        def buildLog = sh(script: 'tail -n 50 /var/log/jenkins/jenkins.log', returnStdout: true).trim()
+        def buildLog = ""
 
+        // ⚠️ Validamos si el archivo de log existe antes de leerlo
+        try {
+            buildLog = sh(script: "[ -f ${JENKINS_LOG} ] && tail -n 50 ${JENKINS_LOG} || echo 'No logs available'", returnStdout: true).trim()
+        } catch (Exception e) {
+            buildLog = "No logs available"
+        }
+
+        // 🚀 Enviamos el log a Elasticsearch
         sh """
         curl -X POST -H "Content-Type: application/json" -d '
         {
